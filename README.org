@@ -1,0 +1,16 @@
+* What's this?
+  - code completion using libclang for emacs
+* Feature
+  - executable file hacking in emacs to improve better performance, communicating using dll module not a process, and sending buffer content without string or tempfile, just memory adress.
+  - now only surpport code completion, but further may add other practical function from libclang.
+  - fast, very fast!
+* Note
+  - only surpport win32 platform, because of its implementation
+* Install
+  - download and install vcredist_x86 for vs2008 sp1 from microsoft
+  - copy executable files to eamcs bin directory
+  - run lcEngineConfig.exe once to hack emacs, this will add lcEngine.dll to emacs import table and gather some other information
+  - copy lcEngine.el to load-list path
+* Uninstall
+  - remove emacs.exe if lcEngineConfig.exe runed successfully, rename emacs.bak.exe to emacs.exe
+* coming soon!
