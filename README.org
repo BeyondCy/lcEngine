@@ -23,16 +23,18 @@
 #+END_EXAMPLE
   actually it's the extra command args to use in compile, so you can add more option like -D__MSVCRT__ to lcEngine.txt.
   - add those in you .emacs:
-=(add-to-list 'load-path "where the lcEngine.el exists")
+#+BEGIN_EXAMPLE
+(add-to-list 'load-path "where the lcEngine.el exists")
 (require 'lcEngine)
 (add-hook 'c-mode-common-hook
 	  (lambda ()
 	    (local-set-key (kbd "C-.") 'ac-complete-lcEngine)
-	    (ac-lcEngine-setup) ;should comment if testing
-	    ))=
-   need auto complete extension.
- * Uninstall
-  - remove emacs.exe if lcEngineConfig.exe runed successfully, rename emacs.bak.exe to emacs.exe
+	    ;(ac-lcEngine-setup) ;should comment if testing
+	    ))
+#+END_EXAMPLE
+   (require auto complete extension)then you stroke C-. will prompt completion results.
+* Uninstall
+  - remove emacs.exe if lcEngineConfig.exe runed successfully, rename emacs.bak.exe to emacs.exe, remove the elisp config
 * todo
   - Diagnostic
   - project managment
