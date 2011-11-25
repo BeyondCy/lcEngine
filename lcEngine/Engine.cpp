@@ -70,9 +70,26 @@ BOOL WINAPI CEngine::CreateProcessA( __in_opt LPCSTR lpApplicationName
                         if (!Result.empty())
                         {
                             DWORD dwWrite;
-                            // before flushed, WriteConsoleA won't deliver anything to emacs, so we use WriteFile
-                            // WriteConsoleA(lpStartupInfo->hStdInput, Result.c_str() , Result.size(), &dwWrite, NULL); 
-                            ::WriteFile(lpStartupInfo->hStdOutput, Result.c_str(), Result.size(), &dwWrite, NULL);
+                            const size_t BUFFER_SIZE = 0x1000;
+
+                            //size_t count = Result.size() / BUFFER_SIZE;
+                            //size_t loop = 0;
+                            //do 
+                            //{
+                            //    WriteFile(lpStartupInfo->hStdOutput
+                            //        , Result.c_str() + BUFFER_SIZE * loop
+                            //        , (loop == count) ? (Result.size() % BUFFER_SIZE) : BUFFER_SIZE
+                            //        , &dwWrite, NULL); 
+                            //} while (loop++ < count);
+
+                            // WriteConsoleA won't deliver anything to emacs immediately, we must using WriteFile
+                            WriteFile(lpStartupInfo->hStdOutput
+                                , Result.c_str()
+                                // emacs will hang if content size greater than 0x1000
+                                , (Result.size() > BUFFER_SIZE) ? BUFFER_SIZE : Result.size()
+                                , &dwWrite, NULL); 
+
+                            
                         }
                     }
                     LocalFree(szArglist);

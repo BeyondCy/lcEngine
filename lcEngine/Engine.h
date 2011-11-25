@@ -1,5 +1,5 @@
 // date   : 2011/09/07
-// author : xl
+// author : lynnux.cn@gmail.com
 #ifndef ENGINE_H_9_7_14_04
 #define ENGINE_H_9_7_14_04
 
