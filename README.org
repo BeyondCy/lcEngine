@@ -13,12 +13,14 @@
   - copy lcEngine.el to load-list path
 * Usage
   - create a lcEngine.txt file in the source directory, write system header in it, using "-I" ahead, like:
-=-ID:\green\MSYS\mingw\include
+#+BEGIN_EXAMPLE
+-ID:\green\MSYS\mingw\include
 -ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include\
 -ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include\c++\
 -ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include\c++\backward\
 -ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include\c++\mingw32\
--ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include-fixed\=
+-ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include-fixed\
+#+END_EXAMPLE
   actually it's the extra command args to use in compile, so you can add more option like -D__MSVCRT__ to lcEngine.txt.
   - add those in you .emacs:
 =(add-to-list 'load-path "where the lcEngine.el exists")
