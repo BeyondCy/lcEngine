@@ -1,0 +1,1 @@
+add_library(disasm STATIC cpu.c disasm.c disasm_x86.c misc.c)

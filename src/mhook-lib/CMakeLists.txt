@@ -1,0 +1,1 @@
+add_library(mhook STATIC mhook.cpp)

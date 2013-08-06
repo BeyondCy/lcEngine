@@ -1,0 +1,7 @@
+-ID:\MinGW-4.7.1\lib\gcc\mingw32\4.7.1\include\c++
+-ID:\MinGW-4.7.1\lib\gcc\mingw32\4.7.1\include\c++\mingw32
+-ID:\MinGW-4.7.1\lib\gcc\mingw32\4.7.1\include\c++\backward
+-ID:\MinGW-4.7.1\include
+-ID:\MinGW-4.7.1\lib\gcc\mingw32\4.7.1\include
+-ID:\MinGW-4.7.1\lib\gcc\mingw32\4.7.1\include-fixed
+-ID:\boost_1_54_0
