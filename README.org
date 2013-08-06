@@ -7,8 +7,8 @@
   - only support win32 platform, because of its implementation
   - only support the version of emacs greater equal than 23.2
 * Install
+  - download the release package [[http://pan.baidu.com/share/link?shareid%3D677497773&uk%3D1527230529][http://pan.baidu.com/share/link?shareid=677497773&uk=1527230529]], copy all files in release package to eamcs bin directory
   - download and install vcredist_x86 for vs2008 sp1 from microsoft
-  - copy all files in release package to eamcs bin directory
   - run lcEngineConfig.exe once to hack emacs, this will add lcEngine.dll to emacs import table and gather some other information
   - copy lcEngine.el to load-list path
 * Usage
