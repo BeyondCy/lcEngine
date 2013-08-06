@@ -27,7 +27,7 @@ target_link_libraries(lcEngine
 )
 
 # copy libclang.dll to built bin directory
-add_custom_command(TARGET lcEngine POST_BUILD        # Adds a post-build event to MyTest
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different  # which executes "cmake - E copy_if_different..."
-        "${PROJECT_SOURCE_DIR}/bin/libclang.dll"      # <--this is in-file
-        $<TARGET_FILE_DIR:lcEngine>)                 # <--this is out-file path
+# add_custom_command(TARGET lcEngine POST_BUILD        # Adds a post-build event to MyTest
+#     COMMAND ${CMAKE_COMMAND} -E copy_if_different  # which executes "cmake - E copy_if_different..."
+#         "${PROJECT_SOURCE_DIR}/bin/libclang.dll"      # <--this is in-file
+#         $<TARGET_FILE_DIR:lcEngine>)                 # <--this is out-file path
