@@ -1,6 +1,6 @@
 ;;; lcEngine.el --- code completion using libclang for emacs, only support win32 platform
 
-;; Copyright (C) 2011 lynnux
+;; Copyright (C) 2011-2013 lynnux
 
 ;; Author: lynnux <lynnux.cn@gmail.com>
 ;; Thanks: Tomohiro Matsuyama for his gccsense.el
@@ -54,6 +54,7 @@
 (defconst lcEngine-process-send-region-proc "cmd.exe"
   "")
 
+(defvar lcEngine-result-format "^\\($$r:\\(.*\\)\\)*$$t:\\(.*\\)$$p:\\(.*\\)" )
 ;; create a puppet process, which signal lcEngine to log the buffer content
 (defun lcEngine-send-process-buffer (&optional buffer)
   (or buffer (setq buffer (current-buffer)))
@@ -62,7 +63,7 @@
       (set-process-query-on-exit-flag (start-process lcEngine-process-send-region-name nil lcEngine-process-send-region-proc) nil))
     (process-send-region lcEngine-process-send-region-name (point-min) (point-max))))
 
-;; will get ("runemacs.exe" . "-Cfile:line:column")
+;; will get ("runemacs.exe" . "-Cfile:line:column:saved?")
 (defun lcEngine-make-command (&rest command)
   (append `(,lcEngine-call-process-proc)
           command))
@@ -82,17 +83,31 @@
       (let* ((buffer-saved (not (buffer-modified-p buffer))) ; if saved, there is no need use unsaved files in libclang
 	     (filename (buffer-file-name buffer))
              (line (line-number-at-pos))
-             (column (1+ (current-column))))
+             (column (1+ (current-column)))
+	     lines)
 	(unless buffer-saved
 	  (lcEngine-send-process-buffer buffer)) ; send buffer context
-	(delq nil
-	      (split-string (lcEngine-command-to-string
-			     (lcEngine-make-command
-			      (format "-C%s|%s|%s|%s" filename line column 
-				      (if buffer-saved
-					  "n" ; no unsaved
-					"y"))))
-			    "\n"))
+	;; get result
+	(setq lines (delq nil
+	       (split-string (lcEngine-command-to-string
+			      (lcEngine-make-command
+			       (format "-C%s|%s|%s|%s" filename line column 
+				       (if buffer-saved
+					   "n" ; no unsaved
+					 "y"))))
+			     "\n")))
+	;; push raw result to 'lcEngine-yas propertize
+	;; raw format: $$r:returntype$$t:typedstring$$p:rest
+	;; display format: typedstring /*returntype typedstring rest*/
+	(dolist (l lines result) 
+	  (when (string-match lcEngine-result-format l)
+	    (let ((returntype (match-string-no-properties 2 l)) ; the constructor may don't have a retun type
+		  (typedstring (match-string-no-properties 3 l))
+		  (rest (match-string-no-properties 4 l))
+		  match)
+	      (setq match (concat typedstring " /*" returntype " " typedstring rest "*/"))
+	      (setq match (propertize match 'lcEngine-raw-text l))
+	      (push match result))))
 	))))
 
 (defun lcEngine-complete ()
@@ -129,22 +144,123 @@
 (defvar ac-source-lcEngine-member
   '((candidates . (lcEngine-get-completions nil ac-point))
     (prefix "\\(?:\\.\\|->\\)\\(\\(?:[a-zA-Z_][a-zA-Z0-9_]*\\)?\\)" nil 1)
- ;   (document . (lambda (item) (car item)))
+;    (prefix . ac-prefix-default)
+					;   (document . (lambda (item) (car item)))
     (requires . 0)
     (symbol . "m")
+    ;(action . ac-lcEngine-action)
     (cache)))
 
 (defvar ac-source-lcEngine-static-member
   '((candidates . (lcEngine-get-completions nil ac-point))
     (prefix "::\\(\\(?:[a-zA-Z_][a-zA-Z0-9_]*\\)?\\)" nil 1)
-;    (document . (lambda (item) (car item)))
+;    (prefix . ac-prefix-default)
+					;    (document . (lambda (item) (car item)))
     (requires . 0)
     (symbol . "M")
+    ;(action . ac-lcEngine-action)
     (cache)))
+
+;;; from emacs-clang-complete-async
+(defun ac-lcEngine-async-preemptive ()
+  (interactive)
+  (self-insert-command 1)
+  (ac-start))
+
+(defvar ac-lcEngine-do-autocompletion-automatically t)
+ 
+(defun ac-lcEngine-autocomplete-autotrigger ()
+  (interactive)
+  (if ac-lcEngine-do-autocompletion-automatically
+      (ac-lcEngine-async-preemptive)
+    (self-insert-command 1)))
+
+(defun lcEngine-yas-expand-string (string &optional remove-undo-boundary)
+  "Expand `STRING' into the buffer and update `ac-prefix' to `STRING'.
+This function records deletion and insertion sequences by `undo-boundary'.
+If `remove-undo-boundary' is non-nil, this function also removes `undo-boundary'
+that have been made before in this function.  When `buffer-undo-list' is
+`t', `remove-undo-boundary' has no effect."
+  (when (eq buffer-undo-list t)
+    (setq remove-undo-boundary nil))
+  (when (not (equal string (buffer-substring ac-point (point))))
+    (undo-boundary)
+    ;; We can't use primitive-undo since it undoes by
+    ;; groups, divided by boundaries.
+    ;; We don't want boundary between deletion and insertion.
+    ;; So do it manually.
+    ;; Delete region silently for undo:
+    (if remove-undo-boundary
+        (progn
+          (let (buffer-undo-list)
+            (save-excursion
+              (delete-region ac-point (point))))
+          (setq buffer-undo-list
+                (nthcdr 2 buffer-undo-list)))
+      (delete-region ac-point (point)))
+    (yas-expand-snippet string)
+    ;; Sometimes, possible when omni-completion used, (insert) added
+    ;; to buffer-undo-list strange record about position changes.
+    ;; Delete it here:
+    (when (and remove-undo-boundary
+               (integerp (cadr buffer-undo-list)))
+      (setcdr buffer-undo-list (nthcdr 2 buffer-undo-list)))
+    (undo-boundary)
+    (setq ac-selected-candidate string)
+    (setq ac-prefix string)))
+
+(defadvice ac-complete-1 (around lcEngine-ac-complete-1 (candidate) activate)
+  (let ((raw-text (get-text-property 0 'lcEngine-raw-text candidate)))
+    (if raw-text
+	;; copy from ac-complete-1
+	(let ((action (popup-item-property candidate 'action))
+	      (fallback nil))
+	  (when candidate
+	    (when (string-match lcEngine-result-format raw-text)
+	      (let ((returntype (match-string-no-properties 2 raw-text)) ; the constructor may don't have a retun type
+		    (typedstring (match-string-no-properties 3 raw-text))
+		    (rest (match-string-no-properties 4 raw-text))
+		    )
+		(if (featurep 'yasnippet) 
+		    (let ((match (concat typedstring rest)))
+		      ;; (yas/expand-snippet match)
+		      (lcEngine-yas-expand-string match)
+		      )
+		  (unless (ac-expand-string typedstring)
+		    (setq fallback t)))))
+	    
+	    ;; Remember to show help later
+	    (when (and ac-point candidate)
+	      (unless ac-last-completion
+		(setq ac-last-completion (cons (make-marker) nil)))
+	      (set-marker (car ac-last-completion) ac-point ac-buffer)
+	      (setcdr ac-last-completion candidate)))
+	  (ac-abort)
+	  (cond
+	   (action
+	    (funcall action))
+	   (fallback
+	    (ac-fallback-command)))
+	  candidate)
+      ad-do-it)))
+
+;; current can't resolved
+(defadvice ac-expand-common (around lcEngine-ac-expand-common activate)
+  nil)
+
+(defun ac-lcEngine-action ()
+  (interactive)
+  (when (featurep 'yasnippet)
+    (yas-expand))
+  )
 
 ;;; automatically complete without any key down
 (defun ac-lcEngine-setup ()
-  (setq ac-sources (append '(ac-source-lcEngine-member ac-source-lcEngine-static-member) ac-sources)))
+  (setq ac-sources (append '(ac-source-lcEngine-member ac-source-lcEngine-static-member) ac-sources))
+  (local-set-key (kbd ".") 'ac-lcEngine-autocomplete-autotrigger)
+  (local-set-key (kbd ":") 'ac-lcEngine-autocomplete-autotrigger)
+  (local-set-key (kbd ">") 'ac-lcEngine-autocomplete-autotrigger))
+
 
 ;;; 
 (defun ac-complete-lcEngine ()

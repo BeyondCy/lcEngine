@@ -441,12 +441,12 @@ int APIENTRY _tWinMain(HINSTANCE hInstance,
                     // look for ret
                     do
                     {
-                        pSea2 += GetAddrDisLength(pSea2);
+                        pSea2 += GetAddrDisLength((U8*)pSea2);
                     }while(*pSea2 != 0xC3);
                     // look for call xxxx
                     do
                     {
-                        pSea2 -= GetAddrDisLength(pSea2);
+                        pSea2 -= GetAddrDisLength((U8*)pSea2);
                     }while(*pSea2 != 0xE8);
                     int iDelta = *((int*)(pSea2 + 1));
                     unsigned int pCurAdr = pSea2 - pBegin + Sec.ImageBase();

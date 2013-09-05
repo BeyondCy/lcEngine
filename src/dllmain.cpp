@@ -113,16 +113,16 @@ BOOL APIENTRY DllMain( HMODULE hModule,
                 ::GlobalFree(hMem);  
                 if(dwProductVersionMS > 0x00180000) // vesion above 24
                 {
-                    send_process_Org_regparm = send_process_Org;
-                    Mhook_SetHook(&(PVOID&)send_process_Org_regparm, send_process_Hook_regparm);
+                    send_process_Org_regparm = (SEND_PROCESS_REGPARM)send_process_Org;
+                    Mhook_SetHook(&(PVOID&)send_process_Org_regparm, (PVOID)send_process_Hook_regparm);
                 }
                 else
                 {
-                    Mhook_SetHook(&(PVOID&)send_process_Org, send_process_Hook);
+                    Mhook_SetHook(&(PVOID&)send_process_Org, (PVOID)send_process_Hook);
                 }
-                Mhook_SetHook(&(PVOID&)start_process_Org, start_process_Hook);
+                Mhook_SetHook(&(PVOID&)start_process_Org, (PVOID)start_process_Hook);
             }
-            Mhook_SetHook(&(PVOID&)CreateProcessA_Org, CreateProcessA_Hook);
+            Mhook_SetHook(&(PVOID&)CreateProcessA_Org, (PVOID)CreateProcessA_Hook);
             break;
         case DLL_THREAD_ATTACH:
             break;

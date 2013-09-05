@@ -9,7 +9,9 @@
 #include <fstream>
 #include "lcEngine.h"
 
-extern "C" __declspec(dllexport) _cdecl void stub(void){}
+ extern "C" 
+ //__declspec(dllexport)// _cdecl
+void stub(void){}
 
 CEngine g_Engine;
 
@@ -134,7 +136,86 @@ BOOL WINAPI CEngine::CreateProcessA(  LPCSTR lpApplicationName
     return FALSE;
 }
 
-std::string get_complete_str(CXCompletionString completion_string)
+static std::string completion_printAllCompletionTerms(
+    CXCompletionString completion_string// , FILE *fp
+    )
+{
+    std::string ret;
+        
+    int i_chunk  = 0;
+    int n_chunks = clang_getNumCompletionChunks(completion_string);
+
+    CXString chk_text;
+    enum CXCompletionChunkKind chk_kind;
+
+    int placeholder_count = 1;
+    
+    for ( ; i_chunk < n_chunks; i_chunk++)
+    {
+        /* get the type and completion text of this chunk */
+        chk_kind = clang_getCompletionChunkKind(completion_string, i_chunk);
+        chk_text = clang_getCompletionChunkText(completion_string, i_chunk);
+        
+        /* differenct kinds of chunks has various output formats */
+        switch (chk_kind)
+        {
+                
+        case CXCompletionChunk_ResultType:
+            ret += "$$r:";
+            ret += clang_getCString(chk_text);
+          break;
+
+        case CXCompletionChunk_TypedText:
+            ret += "$$t:";
+            ret += clang_getCString(chk_text);
+            ret += "$$p:(";
+            break;
+
+        case CXCompletionChunk_Placeholder:
+        {
+            char tmp[10] = {0};
+            if(placeholder_count != 1)
+            {
+                ret += ", ";
+            }
+            sprintf(tmp, "%d", ++placeholder_count);
+            ret += "${";
+            ret += tmp;
+            ret += ":";
+            ret += clang_getCString(chk_text);
+            ret += "}";
+        }
+        break;
+        
+        default:
+            break;
+            
+        // case CXCompletionChunk_Optional:
+        //     /* print optional term in a recursive way */
+        //     ret += " o:";
+        //     ret += 
+        //     completion_printAllCompletionTerms(
+        //         clang_getCompletionChunkCompletionString(completion_string, i_chunk)
+        //         );
+        //     break;
+                
+        // default:
+        //     ret += " d:";
+        //     ret += clang_getCString(chk_text);
+        }
+
+        clang_disposeString(chk_text);
+    }
+    if(!ret.empty())
+    {
+        ret += ")$0";
+    }
+//    OutputDebugStringA(ret.c_str());
+    
+    return ret;
+}
+
+static std::string get_complete_str(CXCompletionString completion_string)
 {
     std::string ret;
     int I, N;
@@ -152,13 +233,14 @@ std::string get_complete_str(CXCompletionString completion_string)
         text = clang_getCompletionChunkText(completion_string, I);
         ret = clang_getCString(text);
         clang_disposeString(text);
+        return ret;
     }
     return ret;
 }
 
 #define SPLIT_CHAR '|'
 
-bool sort_pred(const std::string& left, const std::string& right)
+static bool sort_pred(const std::string& left, const std::string& right)
 {
     return left != right;
 }
@@ -224,7 +306,8 @@ std::string CEngine::GetCmdResult( const CMD_LIST& cmdList )
                             for (unsigned i = 0; i < res->NumResults; ++i)
                             {
                                 // std::set automaticly ignore duplicated elements
-                                set_result.insert(get_complete_str((res->Results + i)->CompletionString));
+                                set_result.insert(// get_complete_str((res->Results + i)->CompletionString) + 
+                                                  completion_printAllCompletionTerms((res->Results + i)->CompletionString));
                             }
                             
                             for (std::set<std::string>::iterator ubegin = set_result.begin();

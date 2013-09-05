@@ -8,7 +8,11 @@ target_link_libraries(lcEngineConfig disasm shlwapi version)
 
 # lcEngine
 if(MINGW)
-set (CMAKE_CXX_FLAGS "-fpermissive")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpermissive")
+
+## -flto -mabi=sysv -s")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
 endif(MINGW)
 if (MSVC)
 message(FATAL_ERROR "not surpport msvc build!")
