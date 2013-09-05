@@ -10,8 +10,10 @@
 #include "lcEngine.h"
 
  extern "C" 
- //__declspec(dllexport)// _cdecl
+__declspec(dllexport)// _cdecl
 void stub(void){}
+
+
 
 CEngine g_Engine;
 
@@ -178,7 +180,7 @@ static std::string completion_printAllCompletionTerms(
             {
                 ret += ", ";
             }
-            sprintf(tmp, "%d", ++placeholder_count);
+            sprintf(tmp, "%d", placeholder_count++);
             ret += "${";
             ret += tmp;
             ret += ":";

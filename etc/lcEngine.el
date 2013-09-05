@@ -105,6 +105,8 @@
 		  (typedstring (match-string-no-properties 3 l))
 		  (rest (match-string-no-properties 4 l))
 		  match)
+	      ;;; re-builder非常好用
+	      (setq rest (replace-regexp-in-string "\\(${[0-9]+:\\)\\|\\(}\\)\\|$0" "" rest))
 	      (setq match (concat typedstring " /*" returntype " " typedstring rest "*/"))
 	      (setq match (propertize match 'lcEngine-raw-text l))
 	      (push match result))))
