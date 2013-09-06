@@ -6,7 +6,7 @@
 * 注意
   - 只支持win32平台的emacs，并且版本要大于等于23.2
 * 安装
-  - 下载[[http://pan.baidu.com/share/link?shareid%3D677497773&uk%3D1527230529][http://pan.baidu.com/share/link?shareid=677497773&uk=1527230529]], 将libclang放到MinGW的bin目录，其它放emacs的bin目录
+  - 下载[[http://pan.baidu.com/share/link?shareid%3D677497773&uk%3D1527230529][http://pan.baidu.com/share/link?shareid=677497773&uk=1527230529]] (复制到浏览器中打开)，将libclang放到MinGW的bin目录，其它放emacs的bin目录
   - 下载并安装vs2008 sp1运行库
   - 将lcEngine.el添加到emacs的load-list目录中
   - 运行lcEngineConfig.exe一次, 这会将lcEngine.dll添加到emacs的导入表中
@@ -29,5 +29,5 @@
 #+END_EXAMPLE
 * 卸载
   - 删除被patch过的emacs.exe更名emacs.bak.exe为emacs.exe, 删除lcEngine.el相关的配置
-* TODO
+* 未来功能
   - 工程管理
