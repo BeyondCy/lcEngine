@@ -1,40 +1,33 @@
-* What's this?
-  - emacs code completion extension using libclang
-* Feature
-  - extremely hacky way on executable file to improve better performance, such as, communicating using dll module not a process, and sending buffer content without string or tempfile, just memory adress.
-  - very fast, cost no more than 0.15 second on completion.
-* Note
-  - only support win32 platform, because of its implementation
-  - only support the version of emacs greater equal than 23.2
-* Install
-  - download the release package [[http://pan.baidu.com/share/link?shareid%3D677497773&uk%3D1527230529][http://pan.baidu.com/share/link?shareid=677497773&uk=1527230529]], copy all files in release package to eamcs bin directory
-  - download and install vcredist_x86 for vs2008 sp1 from microsoft
-  - run lcEngineConfig.exe once to hack emacs, this will add lcEngine.dll to emacs import table and gather some other information
-  - copy lcEngine.el to load-list path
-* Usage
-  - create a lcEngine.txt file in the source directory, write system header in it, using "-I" ahead, like:
-#+BEGIN_EXAMPLE
--ID:\green\MSYS\mingw\include
--ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include\
--ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include\c++\
--ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include\c++\backward\
--ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include\c++\mingw32\
--ID:\green\MSYS\mingw\lib\gcc\mingw32\4.3.3\include-fixed\
-#+END_EXAMPLE
-  actually it's the extra command args to use in compile, so you can add more option like -D__MSVCRT__ to lcEngine.txt.
-  - add those in you .emacs:
+* 这是什么
+  - emacs补全插件，内部使用libclang。特点是直接hack emacs，使得传递buffer内容时用的emacs进程本身的内存，而不是临时文件(其他补全无一例外会使用临时文件)
+* 功能
+  - 补全c/c++代码
+  - 配合flymake检查语法错误
+* 注意
+  - 只支持win32平台的emacs，并且版本要大于等于23.2
+* 安装
+  - 下载[[http://pan.baidu.com/share/link?shareid%3D677497773&uk%3D1527230529][http://pan.baidu.com/share/link?shareid=677497773&uk=1527230529]], 将libclang放到MinGW的bin目录，其它放emacs的bin目录
+  - 下载并安装vs2008 sp1运行库
+  - 将lcEngine.el添加到emacs的load-list目录中
+  - 运行lcEngineConfig.exe一次, 这会将lcEngine.dll添加到emacs的导入表中
+* 用法
+  - 在.emacs:中添加：
 #+BEGIN_EXAMPLE
 (add-to-list 'load-path "where the lcEngine.el exists")
 (require 'lcEngine)
 (add-hook 'c-mode-common-hook
 	  (lambda ()
 	    (local-set-key (kbd "C-.") 'ac-complete-lcEngine)
-	    ;(ac-lcEngine-setup) ;should comment if testing
+             (ac-lcEngine-setup) ;should comment if testing
 	    ))
 #+END_EXAMPLE
-   (require auto complete extension)then you stroke C-. will prompt completion results.
-* Uninstall
-  - remove emacs.exe if lcEngineConfig.exe runed successfully, rename emacs.bak.exe to emacs.exe, remove the elisp config
-* todo
-  - Diagnostic
-  - project managment
+  需要auto complete，yasnippet, flymake
+  - 写一般的小程序都可以补全了，如果还想定制更多可以在cpp文件的同级目录里添加lcEngine.txt，内容如：
+#+BEGIN_EXAMPLE
+-D__MSVCRT__
+-ID:\boost
+#+END_EXAMPLE
+* 卸载
+  - 删除被patch过的emacs.exe更名emacs.bak.exe为emacs.exe, 删除lcEngine.el相关的配置
+* TODO
+  - 工程管理
