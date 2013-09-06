@@ -78,7 +78,10 @@ class CProject
 {
 public:
     CProject(int excludeDeclarationsFromPCH = 0, int displayDiagnostics = 0);
+    // actually, filename is a path
     CXTranslationUnit getCXTranslationUnit(const std::string& filename, bool update = false);
+    void disposeTranslationUnit(const std::string& filename);
+    
 protected:
 private:
     CXIndex CIdx_; // one project, one CXIndex

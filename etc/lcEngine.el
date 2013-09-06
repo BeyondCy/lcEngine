@@ -63,7 +63,7 @@
       (set-process-query-on-exit-flag (start-process lcEngine-process-send-region-name nil lcEngine-process-send-region-proc) nil))
     (process-send-region lcEngine-process-send-region-name (point-min) (point-max))))
 
-;; will get ("runemacs.exe" . "-Cfile:line:column:saved?")
+;; will get ("runemacs.exe" . "-Cfile|line|column|saved?")
 (defun lcEngine-make-command (&rest command)
   (append `(,lcEngine-call-process-proc)
           command))
@@ -250,18 +250,63 @@ that have been made before in this function.  When `buffer-undo-list' is
 (defadvice ac-expand-common (around lcEngine-ac-expand-common activate)
   nil)
 
-(defun ac-lcEngine-action ()
+;;; you can't save a file before libclang release the handle of file
+(defun lcEngine-before-save-hook()
+  (when (or (equal major-mode 'c++-mode)
+	    (equal major-mode 'c-mode))
+    (lcEngine-command-to-string
+    (lcEngine-make-command
+     (format "-disp%s" (buffer-file-name (current-buffer)))))))
+
+;; flymake
+(defun lcEngine-flymake-process-sentinel ()
   (interactive)
-  (when (featurep 'yasnippet)
-    (yas-expand))
-  )
+  (setq flymake-err-info flymake-new-err-info)
+  (setq flymake-new-err-info nil)
+  (setq flymake-err-info
+        (flymake-fix-line-numbers
+         flymake-err-info 1 (flymake-count-lines)))
+  (flymake-delete-own-overlays)
+  (flymake-highlight-err-lines flymake-err-info))
+
+(defun lcEngine-syntax-check ()
+  (interactive)
+  (let* ((buffer (current-buffer))
+	 (buffer-saved (not (buffer-modified-p buffer)))
+	 (filename (buffer-file-name buffer)))
+    (unless buffer-saved
+      (lcEngine-send-process-buffer buffer))
+    (let ((output (lcEngine-command-to-string
+		   (lcEngine-make-command
+		    (format "-flymake%s|%s" filename 
+			    (if buffer-saved
+				"n"	; no unsaved
+			      "y"))))))
+      ;; (flymake-log 3 "received %d byte(s) of output from process %d"
+      ;; 		   (length output) (process-id process))
+      ;;(message (concat "\n\n" output "\n\n"))
+      (flymake-parse-output-and-residual output)
+      (flymake-parse-residual)
+      (lcEngine-flymake-process-sentinel))))
+
+(defvar lcEngine-enable-flymake t)
 
 ;;; automatically complete without any key down
 (defun ac-lcEngine-setup ()
   (setq ac-sources (append '(ac-source-lcEngine-member ac-source-lcEngine-static-member) ac-sources))
   (local-set-key (kbd ".") 'ac-lcEngine-autocomplete-autotrigger)
   (local-set-key (kbd ":") 'ac-lcEngine-autocomplete-autotrigger)
-  (local-set-key (kbd ">") 'ac-lcEngine-autocomplete-autotrigger))
+  (local-set-key (kbd ">") 'ac-lcEngine-autocomplete-autotrigger)
+  (add-hook 'before-save-hook #'lcEngine-before-save-hook)
+  (when lcEngine-enable-flymake
+    (require 'flymake)
+    ;;; 只需要flymake在检查时调用我们的lcEngine-syntax-check就行了
+    (defadvice flymake-start-syntax-check (around lcEngine-flymake activate)
+      (if (or (equal major-mode 'c++-mode)
+	      (equal major-mode 'c-mode))
+	  (lcEngine-syntax-check)
+	  ad-do-it))
+    (flymake-mode-on)))
 
 
 ;;; 

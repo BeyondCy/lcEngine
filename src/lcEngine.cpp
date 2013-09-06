@@ -90,15 +90,12 @@ BOOL WINAPI CEngine::CreateProcessA(  LPCSTR lpApplicationName
                                       // emacs will hang if content size greater than 0x1000
                                       , (Result.size() > BUFFER_SIZE) ? BUFFER_SIZE : Result.size()
                                       , &dwWrite, NULL); 
-
-                            
                         }
                     }
                     LocalFree(szArglist);
                 }
                 free(pCmd);
             }
-           
             // trick : if we don't create a real process, emacs will create many suspended threads.
             if (!bCreateProcessed_)
             {
@@ -143,7 +140,7 @@ static std::string completion_printAllCompletionTerms(
     )
 {
     std::string ret;
-        
+    
     int i_chunk  = 0;
     int n_chunks = clang_getNumCompletionChunks(completion_string);
 
@@ -210,7 +207,7 @@ static std::string completion_printAllCompletionTerms(
     }
     if(!ret.empty())
     {
-        ret += ")$0";
+        ret += ")$0";        
     }
 //    OutputDebugStringA(ret.c_str());
     
@@ -255,7 +252,7 @@ std::string CEngine::GetCmdResult( const CMD_LIST& cmdList )
     {
         if (0 == cmdList[i].compare(0, 2, "-C", 2)) // code completion
         {
-            // -C:file:line:column:[n|y]
+            // -Cfile|line|column|[n|y]
             CProject* np = get_project(1); // now only support one project
             if (np)
             {
@@ -332,6 +329,51 @@ std::string CEngine::GetCmdResult( const CMD_LIST& cmdList )
         if (0 == cmdList[i].compare(0, 2, "-I", 2)) // include 
         {
             return cmdList[i].substr(2);
+        }
+        if (0 == cmdList[i].compare(0, 5, "-disp", 5))
+        {
+            // -dispfilepath
+            std::string filepath = cmdList[i].substr(5);
+            CProject* np = get_project(1);
+            if(np)
+                np->disposeTranslationUnit(filepath);
+        }
+        if (0 == cmdList[i].compare(0, 8, "-flymake", 8))
+        {
+            // -flymake|[y|n]
+            std::string left = cmdList[i].substr(8);
+            std::string fileName = left.substr(0, left.find_first_of(SPLIT_CHAR));
+            left = left.substr(left.find_first_of(SPLIT_CHAR) + 1);
+            bool bsaved = (*(left.begin()) == 'n');
+            CProject* np = get_project(1);
+            if(np)
+            {
+                CXTranslationUnit t = np->getCXTranslationUnit(fileName);
+                
+                // if not saved, reparse it
+                if (!bsaved && buf_ && len_)
+                {
+                    CXUnsavedFile unsaved;
+                    unsaved.Contents = buf_;
+                    unsaved.Length = len_;
+                    unsaved.Filename = fileName.c_str();
+                    clang_reparseTranslationUnit(t, 1, &unsaved, CXTranslationUnit_PrecompiledPreamble);
+                }
+                unsigned int i_diag = 0, n_diag;
+                CXDiagnostic diag;
+                CXString     dmsg;
+                n_diag = clang_getNumDiagnostics(t);
+                for ( ; i_diag < n_diag; i_diag++)
+                {
+                    diag = clang_getDiagnostic(t, i_diag);
+                    dmsg = clang_formatDiagnostic(diag, clang_defaultDiagnosticDisplayOptions());
+                    //fprintf(stdout, "%s\n", clang_getCString(dmsg));
+                    retStr += clang_getCString(dmsg);
+                    retStr += "\n";
+                    clang_disposeString(dmsg);
+                    clang_disposeDiagnostic(diag);
+                }
+            }
         }
     }
     return retStr;
@@ -503,6 +545,16 @@ CXTranslationUnit CProject::getCXTranslationUnit( const std::string& filename, b
         }
     }
     return ret; 
+}
+
+void CProject::disposeTranslationUnit(const std::string& filename)
+{
+    MAP_TU::iterator mi = tu_list.find(filename);
+    if (mi != tu_list.end())
+    {
+        clang_disposeTranslationUnit(mi->second);
+        tu_list.erase(mi);
+    }
 }
 
 CProject::CProject( int excludeDeclarationsFromPCH /*= 0*/, int displayDiagnostics /*= 0*/ )
