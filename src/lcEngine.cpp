@@ -136,9 +136,15 @@ BOOL WINAPI CEngine::CreateProcessA(  LPCSTR lpApplicationName
 }
 
 static std::string completion_printAllCompletionTerms(
-    CXCompletionString completion_string// , FILE *fp
+    CXCompletionResult* cxc
     )
 {
+    CXCompletionString completion_string = cxc->CompletionString;// , FILE *fp
+    // char temp[10];
+    // sprintf(temp, "kind:%d\n", cxc->CursorKind);
+    // OutputDebugStringA(temp);
+    bool bFiled = cxc->CursorKind == CXCursor_FieldDecl; // 成员变量不加()
+    
     std::string ret;
     
     int i_chunk  = 0;
@@ -155,6 +161,8 @@ static std::string completion_printAllCompletionTerms(
         chk_kind = clang_getCompletionChunkKind(completion_string, i_chunk);
         chk_text = clang_getCompletionChunkText(completion_string, i_chunk);
         
+        // OutputDebugStringA(clang_getCString(chk_text));
+        
         /* differenct kinds of chunks has various output formats */
         switch (chk_kind)
         {
@@ -167,11 +175,13 @@ static std::string completion_printAllCompletionTerms(
         case CXCompletionChunk_TypedText:
             ret += "$$t:";
             ret += clang_getCString(chk_text);
-            ret += "$$p:(";
+            ret += "$$p:";
+            if(!bFiled) ret += "(";
             break;
 
         case CXCompletionChunk_Placeholder:
         {
+            if(bFiled) continue;
             char tmp[10] = {0};
             if(placeholder_count != 1)
             {
@@ -188,26 +198,14 @@ static std::string completion_printAllCompletionTerms(
         
         default:
             break;
-            
-        // case CXCompletionChunk_Optional:
-        //     /* print optional term in a recursive way */
-        //     ret += " o:";
-        //     ret += 
-        //     completion_printAllCompletionTerms(
-        //         clang_getCompletionChunkCompletionString(completion_string, i_chunk)
-        //         );
-        //     break;
-                
-        // default:
-        //     ret += " d:";
-        //     ret += clang_getCString(chk_text);
         }
 
         clang_disposeString(chk_text);
     }
     if(!ret.empty())
     {
-        ret += ")$0";        
+        if(!bFiled) ret+=")";
+        ret += "$0";        
     }
 //    OutputDebugStringA(ret.c_str());
     
@@ -304,9 +302,12 @@ std::string CEngine::GetCmdResult( const CMD_LIST& cmdList )
                             std::set<std::string> set_result;
                             for (unsigned i = 0; i < res->NumResults; ++i)
                             {
+                                CXCursorKind kind = (res->Results + i)->CursorKind;
+                                if(kind == CXCursor_ClassDecl || kind == CXCursor_Destructor)
+                                    continue;
                                 // std::set automaticly ignore duplicated elements
                                 set_result.insert(// get_complete_str((res->Results + i)->CompletionString) + 
-                                                  completion_printAllCompletionTerms((res->Results + i)->CompletionString));
+                                                  completion_printAllCompletionTerms(res->Results + i));
                             }
                             
                             for (std::set<std::string>::iterator ubegin = set_result.begin();
