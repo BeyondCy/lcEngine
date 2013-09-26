@@ -2,6 +2,7 @@
 
 #include <shlwapi.h>
 #include <Shellapi.h>
+#include <string.h>
 #include <set>
 #include <utility>
 #include <algorithm>
@@ -235,12 +236,20 @@ static std::string get_complete_str(CXCompletionString completion_string)
     return ret;
 }
 
-#define SPLIT_CHAR '|'
-
-static bool sort_pred(const std::string& left, const std::string& right)
+static void parse_command(const std::string& str, std::vector<std::string>& ret)
 {
-    return left != right;
+    ret.clear();
+    char buf[512] = {0}; // enough
+    memcpy(buf, str.c_str(), str.size());
+    char *pch;
+    pch = strtok (buf, "|");
+    while (pch != NULL)
+    {
+        ret.push_back(pch);
+        pch = strtok (NULL, "|");
+    }
 }
+
 // in the future, we will establish a command system for calling libclang's useful functions
 std::string CEngine::GetCmdResult( const CMD_LIST& cmdList )
 {
@@ -248,131 +257,145 @@ std::string CEngine::GetCmdResult( const CMD_LIST& cmdList )
     size_t Length = cmdList.size();
     for (size_t i = 0; i < Length; ++i)
     {
-        if (0 == cmdList[i].compare(0, 2, "-C", 2)) // code completion
+        std::vector<std::string> str_parsed;
+        parse_command(cmdList[i], str_parsed);
+        if(!str_parsed.empty())
         {
-            // -Cfile|line|column|[n|y]
-            CProject* np = get_project(1); // now only support one project
-            if (np)
+            // code completion, -C|file|line|column|[n|y]
+            if ("-C" == str_parsed[0] && str_parsed.size() == 5)
             {
-                std::string fileName;
-                unsigned line, column;
-                bool bNoUnsaved = false;
-                CXUnsavedFile unsaved;
+                CProject* np = get_project(1); // now only support one project
+                if (np)
+                {
+                    std::string fileName = str_parsed[1];
+                    unsigned line = atoi(str_parsed[2].c_str());
+                    unsigned column = atoi(str_parsed[3].c_str());
+                    bool bNoUnsaved = (*(str_parsed[4].begin()) == 'n');
+                    CXUnsavedFile unsaved;
 
-                std::string left = cmdList[i].substr(2);
-                fileName = left.substr(0, left.find_first_of(SPLIT_CHAR));
-                left = left.substr(left.find_first_of(SPLIT_CHAR) + 1);
-                std::string temp = left.substr(0, left.find_first_of(SPLIT_CHAR));
-                line = atoi(temp.c_str());
-                left = left.substr(left.find_first_of(SPLIT_CHAR) + 1);
-                temp = left.substr(0, left.find_first_of(SPLIT_CHAR));
-                column = atoi(temp.c_str());
-                left = left.substr(left.find_first_of(SPLIT_CHAR) + 1);
-                
-                bNoUnsaved = (*(left.begin()) == 'n');
-                if (!bNoUnsaved && buf_ && len_)
-                {
-                    unsaved.Contents = buf_;
-                    unsaved.Length = len_;
-                    unsaved.Filename = fileName.c_str();
-                }
-                CXTranslationUnit tu = np->getCXTranslationUnit(fileName);
-                if (tu)
-                {
-                    // SetCurrentDirectoryA("E:\\src\\mine\\libclang_test"
-                    //   /*(fileName.substr(0, fileName.find_last_of('/'))).c_str()*/);
-#ifdef _DEBUG
-                    DWORD dwTick = GetTickCount(); 
-#endif
-                    CXCodeCompleteResults* res = clang_codeCompleteAt(tu, fileName.c_str(), line, column, 
-                                                                      bNoUnsaved ? 0 : &unsaved, 
-                                                                      bNoUnsaved ? 0 : 1, 0/*clang_defaultCodeCompleteOptions()*/);
-#ifdef _DEBUG
-                    CHAR szDebug[MAX_PATH];
-                    wsprintfA(szDebug, "lcEngine : clang_codeCompleteAt spend tick time: %d \r\n", GetTickCount() - dwTick);
-                    OutputDebugStringA(szDebug);
-#endif
-                    if (res)
+                    if (!bNoUnsaved && buf_ && len_)
                     {
-                        if (res->NumResults)
+                        unsaved.Contents = buf_;
+                        unsaved.Length = len_;
+                        unsaved.Filename = fileName.c_str();
+                    }
+                    CXTranslationUnit tu = np->getCXTranslationUnit(fileName);
+                    if (tu)
+                    {
+                        // SetCurrentDirectoryA("E:\\src\\mine\\libclang_test"
+                        //   /*(fileName.substr(0, fileName.find_last_of('/'))).c_str()*/);
+#ifdef _DEBUG
+                        DWORD dwTick = GetTickCount(); 
+#endif
+                        CXCodeCompleteResults* res = clang_codeCompleteAt(tu, fileName.c_str(), line, column, 
+                                                                          bNoUnsaved ? 0 : &unsaved, 
+                                                                          bNoUnsaved ? 0 : 1, 0/*clang_defaultCodeCompleteOptions()*/);
+#ifdef _DEBUG
+                        CHAR szDebug[MAX_PATH];
+                        wsprintfA(szDebug, "lcEngine : clang_codeCompleteAt spend tick time: %d \r\n", GetTickCount() - dwTick);
+                        OutputDebugStringA(szDebug);
+#endif
+                        if (res)
                         {
-                            clang_sortCodeCompletionResults(res->Results, res->NumResults);
+                            if (res->NumResults)
+                            {
+                                clang_sortCodeCompletionResults(res->Results, res->NumResults);
 
-                            // we often get duplicated elements, although emacs can remove, but the processing time is more than c++
-                            std::set<std::string> set_result;
-                            for (unsigned i = 0; i < res->NumResults; ++i)
-                            {
-                                CXCursorKind kind = (res->Results + i)->CursorKind;
-                                if(kind == CXCursor_ClassDecl || kind == CXCursor_Destructor)
-                                    continue;
-                                // std::set automaticly ignore duplicated elements
-                                set_result.insert(// get_complete_str((res->Results + i)->CompletionString) + 
-                                                  completion_printAllCompletionTerms(res->Results + i));
-                            }
+                                // we often get duplicated elements, although emacs can remove, but the processing time is more than c++
+                                std::set<std::string> set_result;
+                                for (unsigned i = 0; i < res->NumResults; ++i)
+                                {
+                                    CXCursorKind kind = (res->Results + i)->CursorKind;
+                                    if(kind == CXCursor_ClassDecl || kind == CXCursor_Destructor)
+                                        continue;
+                                    // std::set automaticly ignore duplicated elements
+                                    set_result.insert(// get_complete_str((res->Results + i)->CompletionString) + 
+                                        completion_printAllCompletionTerms(res->Results + i));
+                                }
                             
-                            for (std::set<std::string>::iterator ubegin = set_result.begin();
-                                 ubegin != set_result.end(); ++ubegin)
-                            {
-                                retStr += *ubegin;
-                                retStr += "\n";
-                            }
+                                for (std::set<std::string>::iterator ubegin = set_result.begin();
+                                     ubegin != set_result.end(); ++ubegin)
+                                {
+                                    retStr += *ubegin;
+                                    retStr += "\n";
+                                }
                             
-                            if (*(retStr.rbegin()) == '\n')
-                            {
-                                retStr.erase(retStr.end() - 1);
+                                if (*(retStr.rbegin()) == '\n')
+                                {
+                                    retStr.erase(retStr.end() - 1);
+                                }
                             }
+                            clang_disposeCodeCompleteResults(res);
                         }
-                        clang_disposeCodeCompleteResults(res);
                     }
                 }
             }
-        }
-        if (0 == cmdList[i].compare(0, 2, "-I", 2)) // include 
-        {
-            return cmdList[i].substr(2);
-        }
-        if (0 == cmdList[i].compare(0, 5, "-disp", 5))
-        {
-            // -dispfilepath
-            std::string filepath = cmdList[i].substr(5);
-            CProject* np = get_project(1);
-            if(np)
-                np->disposeTranslationUnit(filepath);
-        }
-        if (0 == cmdList[i].compare(0, 8, "-flymake", 8))
-        {
-            // -flymake|[y|n]
-            std::string left = cmdList[i].substr(8);
-            std::string fileName = left.substr(0, left.find_first_of(SPLIT_CHAR));
-            left = left.substr(left.find_first_of(SPLIT_CHAR) + 1);
-            bool bsaved = (*(left.begin()) == 'n');
-            CProject* np = get_project(1);
-            if(np)
+            // -disp|filepath,在保存文件之前需要删除
+            if ("-disp" == str_parsed[0] && str_parsed.size() == 2)
             {
-                CXTranslationUnit t = np->getCXTranslationUnit(fileName);
+                CProject* np = get_project(1);
+                if(np)
+                    np->disposeTranslationUnit(str_parsed[1]);
+            }
+            // flymake, -flymake|file|[y|n]
+            if ("-flymake" == str_parsed[0] && str_parsed.size() == 3)
+            {
+                std::string fileName = str_parsed[1];
+                bool bsaved = (*(str_parsed[2].begin()) == 'n');
+                CProject* np = get_project(1);
+                if(np)
+                {
+                    CXTranslationUnit t = np->getCXTranslationUnit(fileName);
                 
-                // if not saved, reparse it
-                if (!bsaved && buf_ && len_)
-                {
-                    CXUnsavedFile unsaved;
-                    unsaved.Contents = buf_;
-                    unsaved.Length = len_;
-                    unsaved.Filename = fileName.c_str();
-                    clang_reparseTranslationUnit(t, 1, &unsaved, CXTranslationUnit_PrecompiledPreamble);
+                    // if not saved, reparse it
+                    if (!bsaved && buf_ && len_)
+                    {
+                        CXUnsavedFile unsaved;
+                        unsaved.Contents = buf_;
+                        unsaved.Length = len_;
+                        unsaved.Filename = fileName.c_str();
+                        clang_reparseTranslationUnit(t, 1, &unsaved, CXTranslationUnit_PrecompiledPreamble);
+                    }
+                    unsigned int i_diag = 0, n_diag;
+                    CXDiagnostic diag;
+                    CXString     dmsg;
+                    n_diag = clang_getNumDiagnostics(t);
+                    for ( ; i_diag < n_diag; i_diag++)
+                    {
+                        diag = clang_getDiagnostic(t, i_diag);
+                        dmsg = clang_formatDiagnostic(diag, clang_defaultDiagnosticDisplayOptions());
+                        //fprintf(stdout, "%s\n", clang_getCString(dmsg));
+                        retStr += clang_getCString(dmsg);
+                        retStr += "\n";
+                        clang_disposeString(dmsg);
+                        clang_disposeDiagnostic(diag);
+                    }
                 }
-                unsigned int i_diag = 0, n_diag;
-                CXDiagnostic diag;
-                CXString     dmsg;
-                n_diag = clang_getNumDiagnostics(t);
-                for ( ; i_diag < n_diag; i_diag++)
+            }
+            // goto definition, -def|filename|line|colum|[y|n]
+            if("-def" == str_parsed[0] && str_parsed.size() == 5)
+            {
+                std::string fileName = str_parsed[1];
+                unsigned line = atoi(str_parsed[2].c_str());
+                unsigned colum = atoi(str_parsed[3].c_str());
+                bool bsaved = (*(str_parsed[4].begin()) == 'n');
+                CProject* np = get_project(1);
+                if(np)
                 {
-                    diag = clang_getDiagnostic(t, i_diag);
-                    dmsg = clang_formatDiagnostic(diag, clang_defaultDiagnosticDisplayOptions());
-                    //fprintf(stdout, "%s\n", clang_getCString(dmsg));
-                    retStr += clang_getCString(dmsg);
-                    retStr += "\n";
-                    clang_disposeString(dmsg);
-                    clang_disposeDiagnostic(diag);
+                    CXTranslationUnit tu = np->getCXTranslationUnit(fileName);
+                    // if not saved, reparse it
+                    if (!bsaved && buf_ && len_)
+                    {
+                        CXUnsavedFile unsaved;
+                        unsaved.Contents = buf_;
+                        unsaved.Length = len_;
+                        unsaved.Filename = fileName.c_str();
+                        clang_reparseTranslationUnit(tu, 1, &unsaved, CXTranslationUnit_PrecompiledPreamble);
+                    }
+                    CXFile cf = clang_getFile(tu, fileName.c_str());
+                    CXSourceLocation cs = clang_getLocation(tu, cf, line, colum);
+                    CXCursor cc = clang_getCursor(tu, cs);
+                    
                 }
             }
         }
