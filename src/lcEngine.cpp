@@ -392,9 +392,43 @@ std::string CEngine::GetCmdResult( const CMD_LIST& cmdList )
                         unsaved.Filename = fileName.c_str();
                         clang_reparseTranslationUnit(tu, 1, &unsaved, CXTranslationUnit_PrecompiledPreamble);
                     }
+
+                    // refer to translationunitcache.py::get_definition
                     CXFile cf = clang_getFile(tu, fileName.c_str());
-                    CXSourceLocation cs = clang_getLocation(tu, cf, line, colum);
-                    CXCursor cc = clang_getCursor(tu, cs);
+                    if(cf)
+                    {
+                        CXSourceLocation cs = clang_getLocation(tu, cf, line, colum);
+                        CXCursor cc = clang_getCursor(tu, cs);
+                        CXCursor ccf = clang_getCursorReferenced(cc); //
+                        if(!clang_Cursor_isNull(ccf))
+                        {
+                            CXSourceLocation csl = clang_getCursorLocation(ccf);
+                            CXSourceLocation cslNull = clang_getNullLocation();
+                            if(!clang_equalLocations(csl, cslNull))
+                            {
+                                CXFile cfi;
+                                unsigned line;
+                                unsigned column;
+                                unsigned offset;
+                                clang_getExpansionLocation(csl, &cfi, &line, &column, &offset);
+                                CXString strFile = clang_getFileName(cfi);
+                                char buff[MAX_PATH*2];
+                                sprintf(buff, "$$f:%s$$l:%d$$c:%d", clang_getCString(strFile), line, column);
+                                retStr = buff;
+                                clang_disposeString(strFile);
+                            }
+                        }
+                        // 应该是光标在include的位置，返回的是文件路径，而没有行号和列号
+                        // 但是测试无法命中
+                        else if(cc.kind == CXCursor_InclusionDirective)
+                        {
+                            CXFile cfi = clang_getIncludedFile(cc);
+                            CXString strFile = clang_getFileName(cfi);
+                            retStr = "$$f:";
+                            retStr += clang_getCString(strFile);
+                            clang_disposeString(strFile);
+                        }
+                    }
                     
                 }
             }
