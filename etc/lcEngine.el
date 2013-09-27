@@ -54,7 +54,9 @@
 (defconst lcEngine-process-send-region-proc "cmd.exe"
   "")
 
-(defvar lcEngine-result-format "^\\($$r:\\(.*\\)\\)*$$t:\\(.*\\)$$p:\\(.*\\)" )
+(defvar lcEngine-result-format-completion "^\\($$r:\\(.*\\)\\)*$$t:\\(.*\\)$$p:\\(.*\\)")
+(defvar lcEngine-result-format-definition "^\\($$f:\\(.*\\)\\)*$$l:\\(.*\\)$$c:\\(.*\\)")
+
 ;; create a puppet process, which signal lcEngine to log the buffer content
 (defun lcEngine-send-process-buffer (&optional buffer)
   (or buffer (setq buffer (current-buffer)))
@@ -91,7 +93,7 @@
 	(setq lines (delq nil
 	       (split-string (lcEngine-command-to-string
 			      (lcEngine-make-command
-			       (format "-C%s|%s|%s|%s" filename line column 
+			       (format "-C|%s|%s|%s|%s" filename line column 
 				       (if buffer-saved
 					   "n" ; no unsaved
 					 "y"))))
@@ -100,7 +102,7 @@
 	;; raw format: $$r:returntype$$t:typedstring$$p:rest
 	;; display format: typedstring /*returntype typedstring rest*/
 	(dolist (l lines result) 
-	  (when (string-match lcEngine-result-format l)
+	  (when (string-match lcEngine-result-format-completion l)
 	    (let ((returntype (match-string-no-properties 2 l)) ; the constructor may don't have a retun type
 		  (typedstring (match-string-no-properties 3 l))
 		  (rest (match-string-no-properties 4 l))
@@ -218,7 +220,7 @@ that have been made before in this function.  When `buffer-undo-list' is
 	(let ((action (popup-item-property candidate 'action))
 	      (fallback nil))
 	  (when candidate
-	    (when (string-match lcEngine-result-format raw-text)
+	    (when (string-match lcEngine-result-format-completion raw-text)
 	      (let ((returntype (match-string-no-properties 2 raw-text)) ; the constructor may don't have a retun type
 		    (typedstring (match-string-no-properties 3 raw-text))
 		    (rest (match-string-no-properties 4 raw-text))
@@ -256,7 +258,7 @@ that have been made before in this function.  When `buffer-undo-list' is
 	    (equal major-mode 'c-mode))
     (lcEngine-command-to-string
     (lcEngine-make-command
-     (format "-disp%s" (buffer-file-name (current-buffer)))))))
+     (format "-disp|%s" (buffer-file-name (current-buffer)))))))
 
 ;; flymake
 (defun lcEngine-flymake-process-sentinel ()
@@ -278,7 +280,7 @@ that have been made before in this function.  When `buffer-undo-list' is
       (lcEngine-send-process-buffer buffer))
     (let ((output (lcEngine-command-to-string
 		   (lcEngine-make-command
-		    (format "-flymake%s|%s" filename 
+		    (format "-flymake|%s|%s" filename 
 			    (if buffer-saved
 				"n"	; no unsaved
 			      "y"))))))
@@ -288,6 +290,34 @@ that have been made before in this function.  When `buffer-undo-list' is
       (flymake-parse-output-and-residual output)
       (flymake-parse-residual)
       (lcEngine-flymake-process-sentinel))))
+(defun lcEngine-goto-definition (&optional buffer point)
+  (interactive)
+  (or buffer (setq buffer (current-buffer)))
+  (let* ((buffer-saved (not (buffer-modified-p buffer))) ; if saved, there is no need use unsaved files in libclang
+	 (filename (buffer-file-name buffer))
+	 (line (line-number-at-pos))
+	 (column (1+ (current-column)))
+	 l)
+    (unless buffer-saved
+      (lcEngine-send-process-buffer buffer)) ; send buffer context
+    ;; get result
+    (setq l (lcEngine-command-to-string
+      (lcEngine-make-command
+       (format "-def|%s|%s|%s|%s" filename line column 
+	       (if buffer-saved
+		   "n"			; no unsaved
+		 "y")))))
+    (when (string-match lcEngine-result-format-definition l)
+      (let ((filename-def (match-string-no-properties 2 l)) 
+	    (line-def (match-string-no-properties 3 l))
+	    (column-def (match-string-no-properties 4 l))
+	    match)
+	(find-file filename-def)
+	(goto-line (string-to-number line-def))
+	(beginning-of-line)
+	(forward-char (1- (string-to-number column-def)))
+	))
+    ))
 
 (defvar lcEngine-enable-flymake t)
 

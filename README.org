@@ -3,6 +3,7 @@
 * 功能
   - 补全c/c++代码
   - 配合flymake检查语法错误
+  - 跳转到声明(请自行绑定`lcEngine-goto-definition'到键)
 * 注意
   - 只支持win32平台的emacs，并且版本要大于等于23.2
 * 安装
@@ -31,3 +32,4 @@
   - 删除被patch过的emacs.exe更名emacs.bak.exe为emacs.exe, 删除lcEngine.el相关的配置
 * 未来功能
   - 工程管理
+  - goto 定义
