@@ -19,7 +19,7 @@ typedef void (__cdecl* SEND_PROCESS)(void *proc, char* buf, int len, void* objec
 typedef void (__attribute__((regparm(3)))* SEND_PROCESS_REGPARM)(void *proc, char* buf, int len, void* object);
 typedef int (__cdecl* START_PROCESS)(int nargs, void** args);
 
-CREATEPROCESSA CreateProcessA_Org = CreateProcessA;
+CREATEPROCESSA CreateProcessA_Org = 0;
 static SEND_PROCESS send_process_Org = 0;
 static SEND_PROCESS_REGPARM send_process_Org_regparm = 0;
 static START_PROCESS start_process_Org = 0;
@@ -122,6 +122,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
                 }
                 Mhook_SetHook(&(PVOID&)start_process_Org, (PVOID)start_process_Hook);
             }
+            CreateProcessA_Org = (CREATEPROCESSA)GetProcAddress(GetModuleHandle(TEXT("kernel32.dll")), "CreateProcessA");
             Mhook_SetHook(&(PVOID&)CreateProcessA_Org, (PVOID)CreateProcessA_Hook);
             break;
         case DLL_THREAD_ATTACH:

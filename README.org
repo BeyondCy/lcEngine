@@ -1,29 +1,48 @@
+
 * 这是什么
-  - emacs补全插件，内部使用libclang。特点是直接hack emacs，使得传递buffer内容时用的emacs进程本身的内存，而不是临时文件(其他补全无一例外会使用临时文件)
+  - emacs补全插件，内部使用libclang。特点是直接hack emacs，使得传递buffer内容时用的emacs进程本身的内存，而不是临时文件(其他补全无一例外会使用临时文件)——不过这貌似对速度提升不大
 * 功能
-  - 补全c/c++代码
+  - 补全c/c++代码，演示视频：http://v.youku.com/v_show/id_XNjA1ODA0ODk2.html
   - 配合flymake检查语法错误
   - 跳转到声明(请自行绑定`lcEngine-goto-definition'到键)
 * 注意
   - 只支持win32平台的emacs，并且版本要大于等于23.2
+  - libclang3.3需要vs2008运行库，3.4需要vs2012运行库
 * 安装
-  - 到[[http://www.pleee.com/lcEngine.html]]下载最新的bin，将libclang放到MinGW的bin目录，其它放emacs的bin目录
-  - 下载并安装vs2008 sp1运行库
-  - 将lcEngine.el添加到emacs的load-list目录中
+  - 到[[http://www.pleee.com/lcEngine.html]] 下载最新的release，将libclang放到MinGW的bin目录，其它放emacs的bin目录
+  - 将lcEngine.el添加到emacs能require的目录中
   - 运行lcEngineConfig.exe一次, 这会将lcEngine.dll添加到emacs的导入表中
 * 用法
   - 在.emacs:中添加：
 #+BEGIN_EXAMPLE
-(add-to-list 'load-path "where the lcEngine.el exists")
-(require 'lcEngine)
 (add-hook 'c-mode-common-hook
 	  (lambda ()
-	    (local-set-key (kbd "C-.") 'ac-complete-lcEngine)
-             (ac-lcEngine-setup) ;should comment if testing
+	    (require 'lcEngine)
+	    (local-set-key (kbd "<C-return>") 'ac-complete-lcEngine)
+	    (local-set-key (kbd "<f12>") 'lcEngine-goto-definition)
+	    (ac-lcEngine-setup) ;should comment if testing
+	    (setq flymake-no-changes-timeout 1.0)
+	    (local-set-key (kbd "<f4>") 
+			   (lambda ()
+			     (interactive)
+			     (flymake-goto-next-error)
+			     (let ((err (get-char-property (point) 'help-echo)))
+			       (when err
+				 (message err)))))
+	    (local-set-key [(shift f4)]
+			   (lambda ()
+			     (interactive)
+			     (flymake-goto-prev-error)
+			     (let ((err (get-char-property (point) 'help-echo)))
+			       (when err
+				 (message err)))))
 	    ))
 #+END_EXAMPLE
+  这样，F4为跳到上一个诊断错误，Shift+F4上一个诊断错误，F12跳转到定义
   需要auto complete，yasnippet, flymake
-  - 写一般的小程序都可以补全了，如果还想定制更多可以在cpp文件的同级目录里添加lcEngine.txt，内容如：
+  - 为了确保补全没有错误，需要让libclang知道头文件路径，我编译过的clang和libclang会自动发现MinGW的头文件目录，只需要将clang和libclang放入MinGW的bin目录中，添加其他库如boost有两种方法：
+    1.设置在环境变量中，C库头文件是CPATH或者C_INCLUDE_PATH，C++头文件是CPLUS_INCLUDE_PATH
+    2. 或者lcEngine.txt中
 #+BEGIN_EXAMPLE
 -D__MSVCRT__
 -ID:\boost
@@ -32,4 +51,3 @@
   - 删除被patch过的emacs.exe更名emacs.bak.exe为emacs.exe, 删除lcEngine.el相关的配置
 * 未来功能
   - 工程管理
-  - goto 定义
