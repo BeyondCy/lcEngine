@@ -4,7 +4,7 @@
 * 功能
   - 补全c/c++代码，演示视频：http://v.youku.com/v_show/id_XNjA1ODA0ODk2.html
   - 配合flymake检查语法错误
-  - 跳转到声明(请自行绑定`lcEngine-goto-definition'到键)
+  - 跳转到声明
 * 注意
   - 只支持win32平台的emacs，并且版本要大于等于23.2
   - libclang3.3需要vs2008运行库，3.4需要vs2012运行库
