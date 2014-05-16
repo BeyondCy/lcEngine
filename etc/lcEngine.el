@@ -273,6 +273,7 @@ that have been made before in this function.  When `buffer-undo-list' is
 
 (defun lcEngine-syntax-check ()
   (interactive)
+  (require 'flymake)
   (let* ((buffer (current-buffer))
 	 (buffer-saved (not (buffer-modified-p buffer)))
 	 (filename (buffer-file-name buffer)))
