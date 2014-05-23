@@ -16,12 +16,14 @@ typedef BOOL (WINAPI* CREATEPROCESSA)(
      LPSTARTUPINFOA lpStartupInfo,
      LPPROCESS_INFORMATION lpProcessInformation);
 typedef void (__cdecl* SEND_PROCESS)(void *proc, char* buf, int len, void* object);
-typedef void (__attribute__((regparm(3)))* SEND_PROCESS_REGPARM)(void *proc, char* buf, int len, void* object);
 typedef int (__cdecl* START_PROCESS)(int nargs, void** args);
+#ifndef _MSC_VER
+typedef void (__attribute__((regparm(3)))* SEND_PROCESS_REGPARM)(void *proc, char* buf, int len, void* object);
+static SEND_PROCESS_REGPARM send_process_Org_regparm = 0;
+#endif
 
 CREATEPROCESSA CreateProcessA_Org = 0;
 static SEND_PROCESS send_process_Org = 0;
-static SEND_PROCESS_REGPARM send_process_Org_regparm = 0;
 static START_PROCESS start_process_Org = 0;
 
 static BOOL WINAPI CreateProcessA_Hook(
@@ -51,6 +53,7 @@ static void __cdecl send_process_Hook(void *proc, char* buf, int len, void* obje
         send_process_Org(proc, buf, len, object);
 }
 
+#ifndef _MSC_VER
 // if vesion of emacs > 24, send_process pass parameters by eax, edx, ecx
 // it's gcc regparm attribute: http://blog.csdn.net/unix21/article/details/8450198
 static void __attribute__((regparm(3))) send_process_Hook_regparm(void *proc, char* buf, int len, void* object)
@@ -58,6 +61,8 @@ static void __attribute__((regparm(3))) send_process_Hook_regparm(void *proc, ch
     if (!g_Engine.send_process(proc, buf, len, object)) //
         send_process_Org_regparm(proc, buf, len, object);
 }
+#endif
+
 static int __cdecl start_process_Hook(int nargs, void** args)
 {
     int iRet = 0;
@@ -113,8 +118,10 @@ BOOL APIENTRY DllMain( HMODULE hModule,
                 ::GlobalFree(hMem);  
                 if(dwProductVersionMS > 0x00180000) // vesion above 24
                 {
+#ifndef _MSC_VER
                     send_process_Org_regparm = (SEND_PROCESS_REGPARM)send_process_Org;
                     Mhook_SetHook(&(PVOID&)send_process_Org_regparm, (PVOID)send_process_Hook_regparm);
+#endif
                 }
                 else
                 {

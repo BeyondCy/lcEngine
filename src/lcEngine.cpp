@@ -10,11 +10,7 @@
 #include <fstream>
 #include "lcEngine.h"
 
- extern "C" 
-__declspec(dllexport)// _cdecl
-void stub(void){}
-
-
+extern "C" __declspec(dllexport) void stub(void){}
 
 CEngine g_Engine;
 

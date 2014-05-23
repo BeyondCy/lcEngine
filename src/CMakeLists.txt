@@ -2,7 +2,7 @@ add_subdirectory(mhook-lib)
 add_subdirectory(disasm-lib)
 
 # lcEngineConfig
-add_executable(lcEngineConfig lcEngineConfig.cpp)
+add_executable(lcEngineConfig WIN32 lcEngineConfig.cpp)
 target_link_libraries(lcEngineConfig disasm shlwapi version)
 
 
@@ -14,9 +14,12 @@ set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpermissive")
 ## -flto -mabi=sysv -s")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
 endif(MINGW)
+
 if (MSVC)
-message(FATAL_ERROR "not surpport msvc build!")
+# message(FATAL_ERROR "not surpport msvc build!")
+message(WARNING  "you can only program in vs, but not release the dll by msvc!")
 endif(MSVC)
+
 # find_package(Boost REQUIRED)
 # include_directories(${Boost_INCLUDE_DIRS})
 add_library(lcEngine SHARED dllmain.cpp lcEngine.cpp)
