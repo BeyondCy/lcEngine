@@ -1,4 +1,9 @@
-
+* Important !!
+  我正考虑重写lcEngine，或者新建立一个项目，参考emacs-clang-complete-async的方式
+  做一个垮平台版本的lcEngine。因为我要以自己的思维做补全，所以不会fork一份
+  emacs-clang-complete-async来做。
+  I'm consider rewrite the whole project, make it cross platform. I will take a
+  look at emacs-clang-complete-async project, but I won't fork it.
 * 这是什么
   - emacs补全插件，内部使用libclang。特点是直接hack emacs，使得传递buffer内容时用的emacs进程本身的内存，而不是临时文件(其他补全无一例外会使用临时文件)——不过这貌似对速度提升不大
 * 功能
