@@ -4,6 +4,8 @@ include(cmake/lcEngine.cmake)
 
 project(lcEngine)
 
-# message("${CMAKE_IMPORT_LIBRARY_SUFFIX}")
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 add_subdirectory(src)
 
